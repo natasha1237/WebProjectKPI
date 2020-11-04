@@ -1,0 +1,250 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Create account</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.0/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+    <h1>Beauty Salon</h1>
+    <h2>Create account</h2>
+    <div id="errors" class="alert alert-danger" style="display:none;"></div>
+    <form name="clientForm">
+        <input type="hidden" name="id" value="0" />
+        <div class="form-group col-md-5">
+            <label for="surname">Surname:</label>
+            <input class="form-control" name="surname" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="firstName">Firstname</label>
+            <input class="form-control" name="firstName" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="phone">Phone:</label>
+            <input class="form-control" name="phone" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="email">Email:</label>
+            <input class="form-control" name="email" />
+        </div>
+        <div class="panel-body">
+            <button type="submit" id="submit" class="btn btn-primary">Sing up</button>
+            <a id="reset" class="btn btn-primary">Cancel</a>
+        </div>
+    </form>
+    <table class="table table-condensed table-striped  col-md-6">
+        <thead><tr><th>Id</th><th>Surname</th><th>Firstname</th><th>Phone</th><th>Email</th><th></th></tr></thead>
+        <tbody>
+        </tbody>
+    </table>
+    <div>2020 © NatashaSonya.com</div>
+    <script>
+        // Получение всех пользователей
+        async function GetClients() {
+            // отправляет запрос и получаем ответ
+            const response = await fetch("/api/clients", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            // если запрос прошел нормально
+            if (response.ok === true) {
+                // получаем данные
+                const clients = await response.json();
+                let rows = document.querySelector("tbody");
+                clients.forEach(client => {
+                    // добавляем полученные элементы в таблицу
+                    rows.append(row(client));
+                });
+            }
+        }
+        // Получение одного пользователя
+        async function GetClient(id) {
+            const response = await fetch("/api/clients/" + id, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const client = await response.json();
+                const form = document.forms["clientForm"];
+                form.elements["id"].value = client.id;
+                form.elements["surname"].value = client.firstName;
+                form.elements["firstName"].value = client.firstName;
+                form.elements["phone"].value = client.phone;
+                form.elements["email"].value = client.email;
+            }
+        }
+        // Добавление пользователя
+        async function CreateClient(clientSurname, clientFirstname, clientPhone, clientEmail) {
+            const response = await fetch("api/clients",
+                {
+                    method: "POST",
+                    headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        surname: clientSurname,
+                        firstName: clientFirstname,
+                        phone: clientPhone,
+                        email: clientEmail
+                    })
+                });
+            if (response.ok === true) {
+                const client = await response.json();
+                reset();
+                document.querySelector("tbody").append(row(client));
+            }
+            else {
+                const errorData = await response.json();
+                console.log("errors", errorData);
+                if (errorData) {
+                    // ошибки вследствие валидации по атрибутам
+                    if (errorData.errors) {
+                        if (errorData.errors["Surname"]) {
+                            addError(errorData.errors["Surname"]);
+                        }
+                        if (errorData.errors["FirstName"]) {
+                            addError(errorData.errors["FirstName"]);
+                        }
+                        if (errorData.errors["Phone"]) {
+                            addError(errorData.errors["Phone"]);
+                        }
+                        if (errorData.errors["Email"]) {
+                            addError(errorData.errors["Email"]);
+                        }
+                    }
+                    // кастомные ошибки, определенные в контроллере
+                    // добавляем ошибки свойства FirstName
+                    if (errorData["FirstName"]) {
+                        addError(errorData["FirstName"]);
+                    }
+                }
+                document.getElementById("errors").style.display = "block";
+            }
+        }
+
+        // Изменение пользователя
+        async function EditClient(clientId, clientSurname, clientFirstname, clientPhone, clientEmail) {
+            const response = await fetch("api/clients", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parseInt(clientId, 10),
+                    surname: clientSurname,
+                    firstName: clientFirstname,
+                    phone: clientPhone,
+                    email: clientEmail
+                })
+            });
+            if (response.ok === true) {
+                const client = await response.json();
+                reset();
+                document.querySelector("tr[data-rowid='" + client.id + "']").replaceWith(row(client));
+            }
+        }
+        // Удаление пользователя
+        async function DeleteClient(id) {
+            const response = await fetch("/api/clients/" + id, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const client = await response.json();
+                document.querySelector("tr[data-rowid='" + client.id + "']").remove();
+            }
+        }
+
+        // сброс формы
+        function reset() {
+            const form = document.forms["clientForm"];
+            form.reset();
+            form.elements["id"].value = 0;
+        }
+        function addError(errors) {
+            errors.forEach(error => {
+                const p = document.createElement("p");
+                p.append(error);
+                document.getElementById("errors").append(p);
+            });
+        }
+
+        // создание строки для таблицы
+        function row(client) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", client.id);
+
+            const idTd = document.createElement("td");
+            idTd.append(client.id);
+            tr.append(idTd);
+
+            const surnameTd = document.createElement("td");
+            surnameTd.append(client.surname);
+            tr.append(surnameTd);
+
+            const firstnameTd = document.createElement("td");
+            firstnameTd.append(client.firstName);
+            tr.append(firstnameTd);
+
+            const phoneTd = document.createElement("td");
+            phoneTd.append(client.phone);
+            tr.append(phoneTd);
+
+            const emailTd = document.createElement("td");
+            emailTd.append(client.email);
+            tr.append(emailTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("a");
+            editLink.setAttribute("data-id", client.id);
+            editLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            editLink.append("Change");
+            editLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                GetClient(client.id);
+            });
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("a");
+            removeLink.setAttribute("data-id", client.id);
+            removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            removeLink.append("Delete");
+            removeLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                DeleteClient(client.id);
+            });
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+        // сброс значений формы
+        document.getElementById("reset").click(function (e) {
+            e.preventDefault();
+            reset();
+        })
+
+        // отправка формы
+        document.forms["clientForm"].addEventListener("submit", e => {
+            e.preventDefault();
+            const form = document.forms["clientForm"];
+            const id = form.elements["id"].value;
+            const surname = form.elements["surname"].value;
+            const firstName = form.elements["firstName"].value;
+            const phone = form.elements["phone"].value;
+            const email = form.elements["email"].value;
+
+            if (id == 0)
+                CreateClient(surname, firstName, phone, email);
+            else
+                EditClient(id, surname, firstName, phone, email);
+        });
+
+        // загрузка пользователей
+        GetClients();
+
+    </script>
+</body>
+</html>
